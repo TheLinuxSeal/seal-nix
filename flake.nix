@@ -150,6 +150,10 @@
         example = self.packages.${system}.example;
         # a folder: all of its .seal files, with Main.seal the entry
         features = generate { inherit system; src = ./tests/features; };
+        features-text = pkgs.runCommand "features-text" { } ''
+          grep -q 'description = "Аліса Ковальська, § é";' ${self.checks.${system}.features}
+          touch $out
+        '';
 
         # two machines from one folder, each its entry and the classes it names
         machines = pkgs.runCommand "machines" { } ''

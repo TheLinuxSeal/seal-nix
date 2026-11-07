@@ -9,6 +9,7 @@ class Main {
         Config.fileSystems.get("/data").fsType = "ext4";
         Config.fileSystems.get("/data").options.add("noatime");
         Config.users.users.alice.isNormalUser = true;
+        Config.users.users.alice.description = "Аліса Ковальська, § é";       // UTF-8 all the way
         Config.users.users.alice.extraGroups.add("wheel");
         for (string name : ["bob", "carol"]) {
             Config.users.users.get(name).isNormalUser = true;

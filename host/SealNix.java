@@ -4,6 +4,8 @@ import io.github.thelinuxseal.seal.embed.SealException;
 import io.github.thelinuxseal.seal.embed.SealScript;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -40,6 +42,10 @@ import java.util.stream.Stream;
 public final class SealNix {
 
     public static void main(String[] args) throws IOException {
+        // The module and the messages are UTF-8, as Nix reads them: Java would follow the locale, and
+        // the build sandbox has none, which makes "Ковальська" or "§" into "?".
+        System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out), true, StandardCharsets.UTF_8));
+        System.setErr(new PrintStream(new FileOutputStream(FileDescriptor.err), true, StandardCharsets.UTF_8));
         if (args.length < 3) {
             System.err.println("usage: sealnix-host RUNTIME SPEC SRC...");
             System.exit(2);
