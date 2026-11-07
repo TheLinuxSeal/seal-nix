@@ -3,18 +3,19 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    sealnix = {
+    seal-nix = {
       url = "github:TheLinuxSeal/seal-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { nixpkgs, sealnix, ... }: {
+  outputs = { nixpkgs, seal-nix, ... }: {
     # sudo nixos-rebuild switch --flake .#seal-machine
     nixosConfigurations.seal-machine = nixpkgs.lib.nixosSystem {
       modules = [
         ./hardware-configuration.nix
-        (sealnix.lib.module { system = "x86_64-linux"; src = ./config; inherit nixpkgs; })
+        seal-nix.nixosModules.default
+        { seal-nix.src = ./config; }
       ];
     };
   };

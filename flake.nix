@@ -41,18 +41,13 @@
       };
 
       # The NixOS module a Seal configuration makes, as a .nix file.
-      #   src           the configuration's folder: Main.seal, whose main() sets Config's options
-      #   nixpkgs       whose NixOS options and packages it may use: the system's own, ideally
-      #   extraModules  modules that declare more options (home-manager's, say), for it to set
-      generate = { system, src, nixpkgs ? self.inputs.nixpkgs, extraModules ? [ ] }:
+      #   system  where the generator runs
+      #   src     the configuration's folder: Main.seal, whose main() sets Config's options
+      #   nixos   a NixOS evaluated on its own, whose options and packages the configuration may use
+      generateWith = { system, src, nixos }:
         let
           buildPkgs = self.inputs.nixpkgs.legacyPackages.${system};
-          nixos = nixpkgs.lib.nixosSystem { modules = [{ nixpkgs.hostPlatform = system; }] ++ extraModules; };
-          spec = import ./nix/spec.nix {
-            inherit (nixpkgs) lib;
-            inherit (nixos) options;
-            pkgs = nixpkgs.legacyPackages.${system};
-          } src;
+          spec = import ./nix/spec.nix { inherit (nixos.pkgs) lib; inherit (nixos) options pkgs; } src;
         in
         buildPkgs.runCommand "sealnix-module.nix"
           {
@@ -63,14 +58,26 @@
           ''
             sealnix-host "$specPath" ${src} > $out
           '';
+
+      # As generateWith, with the options and packages of a nixpkgs flake (this one's, unless given),
+      # and of extraModules, modules that declare more options (home-manager's, say).
+      generate = { system, src, nixpkgs ? self.inputs.nixpkgs, extraModules ? [ ] }:
+        generateWith {
+          inherit system src;
+          nixos = nixpkgs.lib.nixosSystem { modules = [{ nixpkgs.hostPlatform = system; }] ++ extraModules; };
+        };
     in
     {
-      lib = {
-        inherit generate;
+      # modules = [ seal-nix.nixosModules.default { seal-nix.src = ./config; } ], as home-manager's
+      # module is added. Nix runs the Seal program while it evaluates the system (import from derivation).
+      nixosModules.default = import ./nix/module.nix { inherit generateWith; };
+      nixosModules.seal-nix = self.nixosModules.default;
 
-        # The configuration as a NixOS module, for nixosSystem's modules:
-        #   (sealnix.lib.module { system = "x86_64-linux"; src = ./config; inherit nixpkgs; })
-        # Nix runs the Seal program while it evaluates the system (import from derivation).
+      lib = {
+        inherit generate generateWith;
+
+        # The configuration as a module of its own, without the seal-nix options:
+        #   (seal-nix.lib.module { system = "x86_64-linux"; src = ./config; inherit nixpkgs; })
         module = args: import (generate args);
       };
 
@@ -105,7 +112,10 @@
         # from the inside that what the Seal program set is so. Needs KVM, and downloads about 1 GiB.
         vm-test = pkgs.testers.runNixOSTest {
           name = "sealnix-vm";
-          nodes.machine.imports = [ (self.lib.module { inherit system; src = ./tests/vm; }) ];
+          nodes.machine = {
+            imports = [ self.nixosModules.default ];
+            seal-nix.src = ./tests/vm;
+          };
           testScript = ''
             machine.wait_for_unit("multi-user.target")
             machine.wait_for_unit("hello.service")
@@ -128,8 +138,9 @@
       # makes a virtual machine of it, which ./result/bin/run-sealbox-vm starts.
       nixosConfigurations.example = lib.nixosSystem {
         modules = [
-          (self.lib.module { system = "x86_64-linux"; src = ./example; })
           ./example/hardware.nix
+          self.nixosModules.default
+          { seal-nix.src = ./example; }
         ];
       };
 
@@ -141,7 +152,13 @@
           (builtins.unsafeDiscardStringContext self.nixosConfigurations.example.config.system.build.toplevel.drvPath);
         features-system = pkgs.writeText "features-system" (builtins.unsafeDiscardStringContext
           (lib.nixosSystem {
-            modules = [ (self.lib.module { inherit system; src = ./tests/features; }) ./example/hardware.nix ];
+            modules = [ ./example/hardware.nix self.nixosModules.default { seal-nix.src = ./tests/features; } ];
+          }).config.system.build.toplevel.drvPath);
+
+        # lib.module, the configuration as a module of its own
+        lib-module-system = pkgs.writeText "lib-module-system" (builtins.unsafeDiscardStringContext
+          (lib.nixosSystem {
+            modules = [ ./example/hardware.nix (self.lib.module { inherit system; src = ./example; }) ];
           }).config.system.build.toplevel.drvPath);
       });
 

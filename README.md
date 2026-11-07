@@ -54,37 +54,58 @@ note: Packages has no package fastfech; did you mean fastfetch?
 
 The commands need flakes: `--extra-experimental-features "nix-command flakes"`, or turn them on in `nix.conf`.
 
-**A machine of your own:** `nix flake init -t github:TheLinuxSeal/seal-nix` in a new folder gives
-[`template/`](template): a `flake.nix`, and `config/Main.seal` to write. Put your machine's
-`/etc/nixos/hardware-configuration.nix` beside them, then, on NixOS:
+**Add it to your system's flake**, as you would home-manager:
 
-```sh
-sudo nixos-rebuild switch --flake .#seal-machine
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    seal-nix = {
+      url = "github:TheLinuxSeal/seal-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs = { nixpkgs, seal-nix, ... }: {
+    nixosConfigurations.my-machine = nixpkgs.lib.nixosSystem {
+      modules = [
+        ./configuration.nix                 # yours, as it is
+        seal-nix.nixosModules.default
+        { seal-nix.src = ./config; }        # the folder with Main.seal
+      ];
+    };
+  };
+}
 ```
 
-On any Linux with Nix (Ubuntu too), build it as a virtual machine and boot it:
+Then `sudo nixos-rebuild switch --flake .#my-machine`. What the Seal program sets merges with
+`configuration.nix` as any module's settings do, so a system can move to Seal an option at a time.
+The options and packages Seal can name are those of the system's own nixpkgs.
+
+| Option | |
+| --- | --- |
+| `seal-nix.src` | The Seal configuration's folder: `Main.seal`, whose `main()` sets `Config`'s options, and its other `.seal` files. |
+| `seal-nix.extraModules` | Modules beyond NixOS's own whose options Seal sets, as `[ home-manager.nixosModules.home-manager ]`; import them into the system too. |
+| `seal-nix.system` | The machine's system, only for one whose modules don't set `nixpkgs.hostPlatform`. |
+| `seal-nix.generated` | The module the Seal configuration made, to read: `nix build .#nixosConfigurations.my-machine.config.seal-nix.generated && cat result`. |
+
+The platforms (`nixpkgs.hostPlatform` and the like), `nixpkgs.pkgs` and `hardware.facter` stay in Nix
+(`hardware-configuration.nix` sets them): NixOS needs them before it can run Seal. Nix runs the Seal
+program while it evaluates the system (import from derivation), so setups with
+`allow-import-from-derivation = false` refuse it.
+
+**A new machine:** `nix flake init -t github:TheLinuxSeal/seal-nix` in an empty folder gives
+[`template/`](template), the flake above with `config/Main.seal` to write. Put your machine's
+`/etc/nixos/hardware-configuration.nix` beside it. On any Linux with Nix (Ubuntu too), build it as a
+virtual machine and boot it:
 
 ```sh
 nix build .#nixosConfigurations.seal-machine.config.system.build.vm && ./result/bin/run-seal-machine-vm
 ```
 
-The template's flake takes the configuration as a module:
-
-```nix
-modules = [
-  ./hardware-configuration.nix
-  (sealnix.lib.module { system = "x86_64-linux"; src = ./config; inherit nixpkgs; })
-];
-```
-
-`inherit nixpkgs` makes the options and packages those of the system's own nixpkgs. Options that
-other modules declare (home-manager's, say) come with `extraModules = [ home-manager.nixosModules.home-manager ];`.
-Nix runs the Seal program while it evaluates the system (import from derivation), so setups with
-`allow-import-from-derivation = false` refuse it.
-
 **Just the `.nix` file:** `nix run github:TheLinuxSeal/seal-nix -- FOLDER` prints the module the
-configuration in FOLDER makes, and `nix run github:TheLinuxSeal/seal-nix -- FOLDER out.nix` writes it
-(`nix run . -- ...` in a clone).
+configuration in FOLDER makes, and `nix run github:TheLinuxSeal/seal-nix -- FOLDER out.nix` writes it.
+In Nix, `seal-nix.lib.generate { system = "x86_64-linux"; src = ./config; }` is that file.
 
 In a clone of this repository: `nix build .#example`; `nix build .#nixosConfigurations.example.config.system.build.vm`;
 `nix flake check`, which converts the example and the feature test and evaluates both as whole systems;
