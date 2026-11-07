@@ -87,10 +87,12 @@ The options and packages Seal can name are those of the system's own nixpkgs.
 | `seal-nix.src` | The Seal configuration's entry file, `./config/Main.seal`: its class's `main()` runs and sets `Config`'s options (see [Several files](#several-files-and-machines)). A folder works too: all its `.seal` files, entry `Main.seal`. |
 | `seal-nix.extraModules` | Modules beyond NixOS's own whose options Seal sets, as `[ home-manager.nixosModules.home-manager ]`; import them into the system too. |
 | `seal-nix.system` | The machine's system, only for one whose modules don't set `nixpkgs.hostPlatform`. |
+| `seal-nix.systemOverlays` | Whether `Packages` has the packages of the system's `nixpkgs.overlays` (default `true`); see [other flakes](#other-flakes-home-manager-hyprland-and-the-rest). |
 | `seal-nix.generated` | The module the Seal configuration made, to read: `nix build .#nixosConfigurations.my-machine.config.seal-nix.generated && cat result`. |
 
-The platforms (`nixpkgs.hostPlatform` and the like), `nixpkgs.pkgs` and `hardware.facter` stay in Nix
-(`hardware-configuration.nix` sets them): NixOS needs them before it can run Seal. Nix runs the Seal
+The platforms (`nixpkgs.hostPlatform` and the like), `nixpkgs.pkgs`, `nixpkgs.overlays`,
+`hardware.facter` and `programs.ccache` stay in Nix (`hardware-configuration.nix` sets the
+platforms): NixOS needs them before it can run Seal, to know where it runs and what `Packages` has. Nix runs the Seal
 program while it evaluates the system (import from derivation), so setups with
 `allow-import-from-derivation = false` refuse it.
 
@@ -206,11 +208,12 @@ folder can hold several machines, each an entry of its own that shares the rest:
 appears in another's text, comments too, so a comment can bring one in; it compiles, but only what
 the entry's `main()` calls sets anything.)
 
-### home-manager, Hyprland, and other modules
+### Other flakes: home-manager, Hyprland, and the rest
 
-All of NixOS's own modules are there: `Config.programs.hyprland.enable = true;`. Another flake's
-NixOS module is too, once seal-nix knows of it through `seal-nix.extraModules` (the system imports it
-as well), home-manager's say:
+All of NixOS's own modules are there: `Config.programs.hyprland.enable = true;`. Any flake's NixOS
+module is too (stylix, sops-nix, disko, nix-minecraft, your own), once seal-nix knows of it through
+`seal-nix.extraModules`; the system imports it as well. seal-nix reads the options with the system's
+`specialArgs`, so a module that needs `inputs` to declare them works. home-manager's, say:
 
 ```nix
 modules = [
@@ -234,6 +237,14 @@ Config.home_manager.users.seal.wayland.windowManager.hyprland.settings.set("gene
 
 Free-form settings, as git's and Hyprland's are, take `.set(key, value)`. Standalone home-manager
 (`homeConfigurations`, `home-manager switch`) isn't one of them: seal-nix makes NixOS modules.
+
+`Packages` is nixpkgs with the system's overlays, so a flake's packages are there once its overlay is
+in `nixpkgs.overlays` (in Nix): `Packages.hyprland` is then Hyprland's flake's. A package no overlay
+brings in, Nix keeps: `environment.systemPackages = [ inputs.foo.packages.x86_64-linux.default ];`
+merges with Seal's. A module that adds an overlay only when an option Seal sets is on, as NixOS's
+own `programs.ccache` does, would make Nix recurse (it needs Seal's settings to know the overlays,
+and the overlays to run Seal): `seal-nix.systemOverlays = false;` stops reading them, and
+`Pkg.of("name")` still reaches any package, unchecked. (`programs.ccache` is Nix's for that reason.)
 
 ### Values
 

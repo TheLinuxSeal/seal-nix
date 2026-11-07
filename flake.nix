@@ -62,11 +62,15 @@
           '';
 
       # As generateWith, with the options and packages of a nixpkgs flake (this one's, unless given),
-      # and of extraModules, modules that declare more options (home-manager's, say).
-      generate = { system, src, nixpkgs ? self.inputs.nixpkgs, extraModules ? [ ] }:
+      # of extraModules, modules that declare more options (home-manager's, say), which get
+      # specialArgs, and of overlays.
+      generate = { system, src, nixpkgs ? self.inputs.nixpkgs, extraModules ? [ ], specialArgs ? { }, overlays ? [ ] }:
         generateWith {
           inherit system src;
-          nixos = nixpkgs.lib.nixosSystem { modules = [{ nixpkgs.hostPlatform = system; }] ++ extraModules; };
+          nixos = nixpkgs.lib.nixosSystem {
+            inherit specialArgs;
+            modules = [{ nixpkgs.hostPlatform = system; nixpkgs.overlays = overlays; }] ++ extraModules;
+          };
         };
     in
     {
@@ -177,6 +181,24 @@
           (lib.nixosSystem {
             modules = [ ./example/hardware.nix self.nixosModules.default { seal-nix.src = ./tests/features; } ];
           }).config.system.build.toplevel.drvPath);
+
+        # specialArgs, which tests/extras/module.nix needs to declare its option, and an overlay's package
+        extras =
+          let
+            sys = lib.nixosSystem {
+              specialArgs.flavour = "seal";
+              modules = [
+                ./example/hardware.nix
+                ./tests/extras/module.nix
+                { nixpkgs.overlays = [ (final: prev: { hello-seal = prev.hello; }) ]; boot.loader.grub.enable = false; }
+                self.nixosModules.default
+                { seal-nix.src = ./tests/extras/Main.seal; seal-nix.extraModules = [ ./tests/extras/module.nix ]; }
+              ];
+            };
+          in
+          assert sys.config.myapp.seal.enable;
+          assert lib.any (p: (p.pname or "") == "hello") sys.config.environment.systemPackages;
+          pkgs.writeText "extras" (builtins.unsafeDiscardStringContext sys.config.system.build.toplevel.drvPath);
 
         # lib.module, the configuration as a module of its own
         lib-module-system = pkgs.writeText "lib-module-system" (builtins.unsafeDiscardStringContext

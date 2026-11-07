@@ -26,9 +26,15 @@ let
 
   # NixOS from this system's nixpkgs, on its own: what the Seal configuration may name, and the
   # types. Not this system's own options, whose types and defaults may depend on what Seal sets.
+  # It has the system's specialArgs (inputs, say), which modules may need to declare their options,
+  # and its overlays, so that Packages has their packages.
   nixos = import (modulesPath + "/../lib/eval-config.nix") {
     system = null;
-    modules = [{ nixpkgs.hostPlatform = hostSystem; }] ++ cfg.extraModules;
+    specialArgs = config._module.specialArgs;
+    modules = [{
+      nixpkgs.hostPlatform = hostSystem;
+      nixpkgs.overlays = if cfg.systemOverlays then config.nixpkgs.overlays else [ ];
+    }] ++ cfg.extraModules;
   };
 
   generated = generateWith { inherit system nixos; inherit (cfg) src; };
@@ -42,11 +48,13 @@ let
     else lib.mkMerge (lib.optional (lib.hasAttrByPath path module) (lib.getAttrFromPath path module));
 
   # What NixOS must know before Seal can run, which only Nix sets: the platforms
-  # (hardware-configuration.nix), and what NixOS reads to decide them: nixpkgs.pkgs (a NixOS test's)
-  # and hardware.facter. This module defines the other names of these namespaces, one level down.
+  # (hardware-configuration.nix), what NixOS reads to decide them (nixpkgs.pkgs, a NixOS test's, and
+  # hardware.facter), the overlays, which Packages has, and programs.ccache, which decides whether
+  # NixOS adds one. This module defines the other names of these namespaces, one level down.
   nixOnly = {
-    nixpkgs = [ "hostPlatform" "buildPlatform" "localSystem" "crossSystem" "system" "pkgs" ];
+    nixpkgs = [ "hostPlatform" "buildPlatform" "localSystem" "crossSystem" "system" "pkgs" "overlays" ];
     hardware = [ "facter" ];
+    programs = [ "ccache" ];
   };
 
   topLevel = lib.filter (n: !(lib.elem n [ "_module" "seal-nix" ])) (lib.attrNames options);
@@ -89,6 +97,17 @@ in
       description = ''
         Modules beyond NixOS's own whose options the Seal configuration sets. Import them into the
         system too.
+      '';
+    };
+
+    systemOverlays = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Whether Packages has the packages of the system's nixpkgs.overlays, as it has nixpkgs's.
+        Turn it off if a module adds an overlay only when an option the Seal configuration sets is
+        on: Nix would need Seal's settings to know the overlays, and the overlays to run Seal, and
+        stops with "infinite recursion". Pkg.of("name") still reaches any package.
       '';
     };
 

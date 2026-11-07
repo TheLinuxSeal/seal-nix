@@ -1,0 +1,10 @@
+import sealnix.*;
+
+// An option of a module that needs the system's specialArgs to declare it, and a package of an
+// overlay the system adds (flake.nix's checks.extras).
+class Main {
+    static void main() {
+        Config.myapp.seal.enable = true;
+        Config.environment.systemPackages.add(Packages.hello_seal);
+    }
+}
