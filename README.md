@@ -71,7 +71,7 @@ The commands need flakes: `--extra-experimental-features "nix-command flakes"`, 
       modules = [
         ./configuration.nix                 # yours, as it is
         seal-nix.nixosModules.default
-        { seal-nix.src = ./config; }        # the folder with Main.seal
+        { seal-nix.src = ./config/Main.seal; }   # a path: no quotes
       ];
     };
   };
@@ -84,7 +84,7 @@ The options and packages Seal can name are those of the system's own nixpkgs.
 
 | Option | |
 | --- | --- |
-| `seal-nix.src` | The Seal configuration's folder: `Main.seal`, whose `main()` sets `Config`'s options, and its other `.seal` files. |
+| `seal-nix.src` | The Seal configuration's entry file, `./config/Main.seal`: its class's `main()` runs and sets `Config`'s options (see [Several files](#several-files-and-machines)). A folder works too: all its `.seal` files, entry `Main.seal`. |
 | `seal-nix.extraModules` | Modules beyond NixOS's own whose options Seal sets, as `[ home-manager.nixosModules.home-manager ]`; import them into the system too. |
 | `seal-nix.system` | The machine's system, only for one whose modules don't set `nixpkgs.hostPlatform`. |
 | `seal-nix.generated` | The module the Seal configuration made, to read: `nix build .#nixosConfigurations.my-machine.config.seal-nix.generated && cat result`. |
@@ -93,6 +93,27 @@ The platforms (`nixpkgs.hostPlatform` and the like), `nixpkgs.pkgs` and `hardwar
 (`hardware-configuration.nix` sets them): NixOS needs them before it can run Seal. Nix runs the Seal
 program while it evaluates the system (import from derivation), so setups with
 `allow-import-from-derivation = false` refuse it.
+
+On a NixOS machine, `/etc/nixos` then holds:
+
+```
+/etc/nixos/
+├── flake.nix                    nixpkgs, seal-nix, and nixosConfigurations.<hostname>
+├── flake.lock                   written by the first rebuild
+├── hardware-configuration.nix   from nixos-generate-config, as it is
+├── configuration.nix            what stays in Nix: imports the hardware file, system.stateVersion
+└── config/
+    ├── Main.seal                seal-nix.src = ./config/Main.seal;
+    ├── Users.seal               Users.add() in Main.seal brings this in
+    └── Desktop.seal             Desktop.main() this
+```
+
+`sudo nixos-rebuild switch` builds the configuration named after the machine's hostname, so name the
+flake's `nixosConfigurations.<name>` as `Config.networking.hostName` names the machine. Flakes are off
+on a fresh install: the first time, `sudo env NIX_CONFIG="experimental-features = nix-command flakes"
+nixos-rebuild switch`, and have the Seal configuration turn them on for good
+(`Config.nix.settings.experimental_features.add("flakes")`). If `/etc/nixos` is a git repository,
+`git add` new `.seal` files: a flake sees only what git tracks.
 
 **A new machine:** `nix flake init -t github:TheLinuxSeal/seal-nix` in an empty folder gives
 [`template/`](template), the flake above with `config/Main.seal` to write. Put your machine's
@@ -146,6 +167,46 @@ reads the module.
 
 Two ways around everything: `Config.set("services.foo.bar", value)` sets any option by its path,
 and `Config.setRaw("services.foo.bar", "lib.mkForce true")` with Nix code.
+
+### Several files, and machines
+
+`seal-nix.src` names the entry, and its class's `main()` is what runs: `./config/Main.seal` runs
+`Main.main()`. Seal keeps each class in a file named after it, so the classes the entry names come
+from the files of those names beside it, and the classes those name, and so on:
+
+```java
+// config/Main.seal
+import sealnix.*;
+
+class Main {
+    static void main() {
+        Config.networking.hostName = "sealbox";
+        Users.add();          // config/Users.seal
+        Desktop.main();       // config/Desktop.seal
+    }
+}
+```
+
+```java
+// config/Users.seal
+import sealnix.*;
+
+class Users {
+    public static void add() {          // members are private unless public
+        Config.users.users.seal.isNormalUser = true;
+        Config.users.users.seal.extraGroups.add("wheel");
+    }
+}
+```
+
+A file nothing names isn't part of the configuration, isn't compiled, and can't break it. So one
+folder can hold several machines, each an entry of its own that shares the rest:
+`seal-nix.src = ./config/Laptop.seal;` runs `Laptop.main()`, which may call `Users.add()` too.
+[`tests/machines`](tests/machines) is two such machines. (A file is named when its class's name
+appears in another's text, comments too, so a comment can bring one in; it compiles, but only what
+the entry's `main()` calls sets anything.)
+
+### Values
 
 The program is ordinary Seal: loops, methods, other classes and files all work, and reading an option
 it set gives the value. Reading one it didn't set gives a placeholder, not NixOS's default. Seal has

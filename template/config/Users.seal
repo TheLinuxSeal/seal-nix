@@ -1,0 +1,10 @@
+import sealnix.*;
+
+// The people who log in. Main.seal calls Users.add(), which is how this file becomes part of it.
+class Users {
+    public static void add() {
+        Config.users.users.seal.isNormalUser = true;
+        Config.users.users.seal.extraGroups.add("wheel");
+        Config.users.users.seal.initialPassword = "seal";       // change it after the first login: passwd
+    }
+}

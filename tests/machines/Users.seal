@@ -1,0 +1,8 @@
+import sealnix.*;
+
+class Users {
+    public static void add() {
+        Config.users.users.seal.isNormalUser = true;
+        Config.users.users.seal.extraGroups.add("wheel");
+    }
+}

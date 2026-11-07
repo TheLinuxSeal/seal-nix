@@ -1,0 +1,11 @@
+import sealnix.*;
+
+// Another machine, from the same folder: seal-nix.src = ./tests/machines/Laptop.seal runs this
+// main(), with the users the desktop machine has too.
+class Laptop {
+    static void main() {
+        Config.networking.hostName = "seal-laptop";
+        Config.services.tlp.enable = true;
+        Users.add();
+    }
+}

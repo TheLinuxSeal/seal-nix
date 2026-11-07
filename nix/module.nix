@@ -1,7 +1,7 @@
 # seal-nix as a NixOS module, which a system's flake adds as it would home-manager's:
 #
 #   inputs.seal-nix = { url = "github:TheLinuxSeal/seal-nix"; inputs.nixpkgs.follows = "nixpkgs"; };
-#   modules = [ seal-nix.nixosModules.default { seal-nix.src = ./config; } ];
+#   modules = [ seal-nix.nixosModules.default { seal-nix.src = ./config/Main.seal; } ];
 #
 # The Seal configuration in seal-nix.src sets the system's options, with the options and packages of
 # the system's own nixpkgs.
@@ -64,10 +64,12 @@ in
     src = lib.mkOption {
       type = lib.types.nullOr lib.types.path;
       default = null;
-      example = lib.literalExpression "./config";
+      example = lib.literalExpression "./config/Main.seal";
       description = ''
-        The folder of the Seal configuration: Main.seal, whose main() sets Config's options, and any
-        other .seal files it uses.
+        The Seal configuration's entry file, a path: ./config/Main.seal. Its class's main() runs, and
+        sets Config's options; the classes it names (Users.add()) come from the .seal files of the
+        same name beside it, and the ones those name, and so on. A folder works too: all its .seal
+        files, with Main.seal the entry.
       '';
     };
 

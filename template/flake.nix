@@ -15,7 +15,7 @@
       modules = [
         ./hardware-configuration.nix
         seal-nix.nixosModules.default
-        { seal-nix.src = ./config; }
+        { seal-nix.src = ./config/Main.seal; }
       ];
     };
   };

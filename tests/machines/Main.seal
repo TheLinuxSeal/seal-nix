@@ -1,0 +1,13 @@
+import sealnix.*;
+
+// The machine sealbox: seal-nix.src = ./tests/machines/Main.seal. The other .seal files beside it
+// are part of it when this file names their classes, and those name theirs; the other machine in
+// this folder isn't named, so it isn't part of this one.
+class Main {
+    static void main() {
+        Config.networking.hostName = "sealbox";
+        Config.system.stateVersion = "26.05";
+        Users.add();
+        Desktop.main();
+    }
+}

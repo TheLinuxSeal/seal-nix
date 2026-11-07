@@ -6,7 +6,7 @@
 # Names are Nix's. Where Nix allows what Seal doesn't, Seal writes `_`: experimental-features is
 # experimental_features, systemd-boot is systemd_boot, and a Seal keyword gets one after it, package_.
 { lib, options, pkgs }:
-src:
+files:
 let
   inherit (builtins) attrNames concatLists elem filter foldl' head isAttrs isBool isFloat isInt isList isString
     length map match split tail tryEval;
@@ -47,7 +47,6 @@ let
 
   # ---- Reading the configuration -----------------------------------------------------------------
 
-  files = filter (f: lib.hasSuffix ".seal" (toString f)) (lib.filesystem.listFilesRecursive src);
   text = lib.concatMapStrings (f: "\n" + builtins.readFile f) files;
 
   # Each `word.a.b.c` the files write, as [ "a" "b" "c" ].

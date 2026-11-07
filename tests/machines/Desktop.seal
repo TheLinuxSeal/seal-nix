@@ -1,0 +1,9 @@
+import sealnix.*;
+
+class Desktop {
+    public static void main() {
+        Config.services.desktopManager.plasma6.enable = true;
+        Config.services.displayManager.sddm.enable = true;
+        Config.environment.systemPackages.add(Packages.kdePackages.kate);
+    }
+}

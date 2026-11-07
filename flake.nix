@@ -42,21 +42,23 @@
 
       # The NixOS module a Seal configuration makes, as a .nix file.
       #   system  where the generator runs
-      #   src     the configuration's folder: Main.seal, whose main() sets Config's options
+      #   src     the configuration's entry file (./config/Main.seal), whose class's main() sets
+      #           Config's options; or its folder, whose entry is Main.seal (nix/sources.nix)
       #   nixos   a NixOS evaluated on its own, whose options and packages the configuration may use
       generateWith = { system, src, nixos }:
         let
           buildPkgs = self.inputs.nixpkgs.legacyPackages.${system};
-          spec = import ./nix/spec.nix { inherit (nixos.pkgs) lib; inherit (nixos) options pkgs; } src;
+          sources = import ./nix/sources.nix { inherit lib; } src;
+          spec = import ./nix/spec.nix { inherit (nixos.pkgs) lib; inherit (nixos) options pkgs; } sources.files;
         in
         buildPkgs.runCommand "sealnix-module.nix"
           {
             nativeBuildInputs = [ self.packages.${system}.host ];
-            spec = builtins.toJSON spec;
+            spec = builtins.toJSON (spec // { inherit (sources) main; });
             passAsFile = [ "spec" ];
           }
           ''
-            sealnix-host "$specPath" ${src} > $out
+            sealnix-host "$specPath" ${sources.dir} > $out
           '';
 
       # As generateWith, with the options and packages of a nixpkgs flake (this one's, unless given),
@@ -68,7 +70,7 @@
         };
     in
     {
-      # modules = [ seal-nix.nixosModules.default { seal-nix.src = ./config; } ], as home-manager's
+      # modules = [ seal-nix.nixosModules.default { seal-nix.src = ./config/Main.seal; } ], as home-manager's
       # module is added. Nix runs the Seal program while it evaluates the system (import from derivation).
       nixosModules.default = import ./nix/module.nix { inherit generateWith; };
       nixosModules.seal-nix = self.nixosModules.default;
@@ -106,7 +108,7 @@
         };
 
         # nix build .#example: the module example/Main.seal makes.
-        example = generate { inherit system; src = ./example; };
+        example = generate { inherit system; src = ./example/Main.seal; };
 
         # nix build .#vm-test: boots a virtual machine configured by tests/vm/Main.seal, and checks
         # from the inside that what the Seal program set is so. Needs KVM, and downloads about 1 GiB.
@@ -114,7 +116,7 @@
           name = "sealnix-vm";
           nodes.machine = {
             imports = [ self.nixosModules.default ];
-            seal-nix.src = ./tests/vm;
+            seal-nix.src = ./tests/vm/Main.seal;
           };
           testScript = ''
             machine.wait_for_unit("multi-user.target")
@@ -140,13 +142,30 @@
         modules = [
           ./example/hardware.nix
           self.nixosModules.default
-          { seal-nix.src = ./example; }
+          { seal-nix.src = ./example/Main.seal; }
         ];
       };
 
       checks = forAllSystems (system: pkgs: {
         example = self.packages.${system}.example;
+        # a folder: all of its .seal files, with Main.seal the entry
         features = generate { inherit system; src = ./tests/features; };
+
+        # two machines from one folder, each its entry and the classes it names
+        machines = pkgs.runCommand "machines" { } ''
+          main=${generate { inherit system; src = ./tests/machines/Main.seal; }}
+          laptop=${generate { inherit system; src = ./tests/machines/Laptop.seal; }}
+          head -1 $main | grep -q "from Desktop.seal, Main.seal, Users.seal:"
+          grep -q 'hostName = "sealbox"' $main
+          grep -q 'plasma6.enable = true' $main
+          ! grep -q tlp $main
+          head -1 $laptop | grep -q "from Laptop.seal, Users.seal:"
+          grep -q 'hostName = "seal-laptop"' $laptop
+          grep -q 'tlp.enable = true' $laptop
+          ! grep -q plasma6 $laptop
+          grep -q 'extraGroups = \[ "wheel" \]' $laptop
+          touch $out
+        '';
       } // lib.optionalAttrs (system == "x86_64-linux") {
         example-system = pkgs.writeText "example-system"
           (builtins.unsafeDiscardStringContext self.nixosConfigurations.example.config.system.build.toplevel.drvPath);

@@ -29,7 +29,8 @@ import java.util.stream.Stream;
  * SPEC is what nix/spec.nix found the configuration's .seal files use: the NixOS options they name,
  * with each option's type, and the nixpkgs packages. From it the host writes the Seal classes
  * sealnix.Config and sealnix.Packages, for those alone, compiles them with RUNTIME's library and the
- * configuration (Seal's embed API), runs its main(), and then sealnix.Dump, which reports every value.
+ * configuration (Seal's embed API), runs its entry's main() (the spec's "main" class, Main unless
+ * it says), and then sealnix.Dump, which reports every value.
  *
  * Seal can't tell an option the program assigned from one it left alone, so the host does all of
  * this twice, with each option starting at another value the second time: false then true, 0 then 1,
@@ -119,10 +120,11 @@ public final class SealNix {
                 System.err.println(d);
             }
         }
+        String main = (String) spec.getOrDefault("main", "Main");
         try {
-            int code = script.run();
+            int code = script.run(main);
             if (code != 0) {
-                System.err.println("the configuration's main() returned " + code);
+                System.err.println(main + ".main() returned " + code);
                 throw new Failed();
             }
             script.run("sealnix.Dump");
