@@ -1,0 +1,6 @@
+package sealnix;
+
+// What SealNix's host runs after the configuration's main(): every value it set, on standard output.
+class Dump {
+    public static void main() { Config.sealnixDump(new Out()); }
+}

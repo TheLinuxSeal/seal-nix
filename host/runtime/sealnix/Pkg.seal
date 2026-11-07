@@ -1,0 +1,19 @@
+package sealnix;
+
+// A package of nixpkgs: Packages.fastfetch, Packages.kdePackages.kate, or, for one named while the
+// program runs, Pkg.of("python3Packages.requests").
+class Pkg {
+    private<Text, Nix> string expr;        // its Nix: pkgs.kdePackages.kate
+
+    public new(string expr) { this.expr = expr; }
+
+    // A package by its attribute path in nixpkgs, which Nix checks when it reads the module.
+    public static Pkg of(string attrPath) {
+        StringBuilder e = new StringBuilder();
+        e.append("pkgs");
+        for (string part : attrPath.split('.')) { e.append('.').append(Text.name(part)); }
+        return new Pkg(e.toString());
+    }
+
+    @overload(Operator.CAST) public string text() { return expr; }
+}

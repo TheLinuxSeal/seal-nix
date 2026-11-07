@@ -1,0 +1,23 @@
+import sealnix.*;
+
+class Main {
+    static void main() {
+        Config.networking.hostName = "seal-machine";
+        Config.networking.networkmanager.enable = true;
+        Config.time.timeZone = "Europe/Kyiv";
+
+        Config.boot.loader.systemd_boot.enable = true;
+        Config.boot.loader.efi.canTouchEfiVariables = true;
+
+        Config.services.openssh.enable = true;
+        Config.nix.settings.experimental_features.add("nix-command");
+        Config.nix.settings.experimental_features.add("flakes");
+
+        Config.environment.systemPackages.add(Packages.fastfetch);
+        Config.environment.systemPackages.add(Packages.git);
+
+        Config.users.users.seal.isNormalUser = true;
+        Config.users.users.seal.extraGroups.add("wheel");
+        Config.users.users.seal.initialPassword = "seal";       // change it after the first login: passwd
+    }
+}

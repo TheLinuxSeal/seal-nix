@@ -1,0 +1,45 @@
+import sealnix.*;
+
+class Main {
+    static void main() {
+        Config.networking.hostName = "sealbox";
+        Config.networking.networkmanager.enable = true;
+        Config.networking.firewall.allowedTCPPorts.add(25565);       // a Minecraft server
+        Config.time.timeZone = "Europe/Kyiv";
+
+        Config.services.openssh.enable = true;
+        Config.services.openssh.settings.PasswordAuthentication = false;
+        Config.services.openssh.settings.PermitRootLogin = "no";
+
+        Config.boot.loader.systemd_boot.enable = true;               // systemd-boot
+        Config.boot.loader.efi.canTouchEfiVariables = true;
+        Config.boot.kernelPackages = Nix.raw("pkgs.linuxPackages_latest");
+
+        Config.programs.firefox.enable = true;
+        Config.nix.settings.experimental_features.add("nix-command");
+        Config.nix.settings.experimental_features.add("flakes");
+        Config.nixpkgs.config.allowUnfree = true;
+
+        Config.environment.systemPackages.add(Packages.fastfetch);
+        Config.environment.systemPackages.add(Packages.git);
+        for (Pkg p : [Packages.neovim, Packages.ripgrep, Packages.fd, Packages.bat]) {
+            Config.environment.systemPackages.add(p);
+        }
+        Config.environment.systemPackages.add(Packages.kdePackages.kate);
+        Config.environment.variables.EDITOR = "nvim";
+
+        Config.users.users.seal.isNormalUser = true;
+        Config.users.users.seal.description = "The Linux Seal";
+        Config.users.users.seal.extraGroups.add("wheel");
+        Config.users.users.seal.extraGroups.add("networkmanager");
+        Config.users.users.seal.packages.add(Packages.prismlauncher);
+
+        // A service of our own, with systemd's options as NixOS names them.
+        Config.systemd_services_entry hello = Config.systemd.services.get("hello");
+        hello.description = "Say hello from Seal";
+        hello.wantedBy.add("multi-user.target");
+        hello.script = "echo hello from Seal";
+        hello.serviceConfig.Type = "oneshot";
+        hello.serviceConfig.set("RemainAfterExit", true);
+    }
+}

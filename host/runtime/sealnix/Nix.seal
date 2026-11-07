@@ -1,0 +1,78 @@
+package sealnix;
+
+import seal.util.List;
+
+// A Nix value, for the options whose type has no Seal type of its own (anything, raw, functions):
+//
+//     Config.boot.kernelPackages = Nix.raw("pkgs.linuxPackages_latest");
+//     Config.services.foo.settings = Nix.attrs().set("port", 8080).set("host", "::");
+class Nix {
+    string expr;
+    List<string> keys;          // an attribute set's, when attrs() made it
+    List<Nix> values;
+
+    public new(string expr) { this.expr = expr; }
+
+    // Nix code, as it is: Nix.raw("pkgs.linuxPackages_latest"), Nix.raw("lib.mkForce true").
+    public static Nix raw(string expr) { return new Nix(expr); }
+
+    public static Nix of(bit v) { return new Nix(Text.b(v)); }
+
+    public static Nix of(int<<64>> v) { return new Nix(Text.i(v)); }
+
+    public static Nix of(double v) { return new Nix(Text.f(v)); }
+
+    public static Nix of(string v) { return new Nix(Text.s(v)); }
+
+    public static Nix of(Pkg v) { return new Nix(v.expr); }
+
+    public static Nix list(List<Nix> items) {
+        StringBuilder out = new StringBuilder();
+        out.append("[");
+        for (Nix item : items) { out.append(' ').append(item.text()); }
+        out.append(" ]");
+        return new Nix(out.toString());
+    }
+
+    public static Nix strings(List<string> items) {
+        List<Nix> all = new List();
+        for (string s : items) { all.add(of(s)); }
+        return list(all);
+    }
+
+    // An attribute set, filled with set: Nix.attrs().set("a", 1).set("b", "x").
+    public static Nix attrs() {
+        Nix a = new Nix("");
+        a.keys = new List();
+        a.values = new List();
+        return a;
+    }
+
+    public Nix set(string key, Nix value) {
+        if (keys == null) { throw new IllegalStateException("set on a Nix value that isn't attrs()"); }
+        keys.add(key);
+        values.add(value);
+        return this;
+    }
+
+    public Nix set(string key, bit value) { return set(key, of(value)); }
+
+    public Nix set(string key, int<<64>> value) { return set(key, of(value)); }
+
+    public Nix set(string key, double value) { return set(key, of(value)); }
+
+    public Nix set(string key, string value) { return set(key, of(value)); }
+
+    public Nix set(string key, Pkg value) { return set(key, of(value)); }
+
+    public string text() {
+        if (keys == null) { return expr; }
+        StringBuilder out = new StringBuilder();
+        out.append("{");
+        for (int k = 0; k < keys.size(); k++) {
+            out.append(' ').append(Text.name(keys.get(k))).append(" = ").append(values.get(k).text()).append(';');
+        }
+        out.append(" }");
+        return out.toString();
+    }
+}

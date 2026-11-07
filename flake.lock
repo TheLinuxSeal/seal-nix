@@ -1,0 +1,48 @@
+{
+  "nodes": {
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1793726008,
+        "narHash": "sha256-jQp1wKvbwWdLBASTXkSi/VYmDJ5AbBi1WvcMt9HWJC8=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "1d060086d60cb76a40cf37109f979d88a5bd6396",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nixpkgs": "nixpkgs",
+        "seal": "seal"
+      }
+    },
+    "seal": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794018813,
+        "narHash": "sha256-ql2qRzNMrwfF6TMwJoglznWrW9pVEqHwCnpF4l9EokM=",
+        "owner": "TheLinuxSeal",
+        "repo": "seal-lang",
+        "rev": "262fc91eb0b035ea5c534512abcf09eb26b66964",
+        "type": "github"
+      },
+      "original": {
+        "owner": "TheLinuxSeal",
+        "repo": "seal-lang",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

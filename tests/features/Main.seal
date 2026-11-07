@@ -1,0 +1,56 @@
+import sealnix.*;
+import seal.util.List;
+
+// Every kind of option SealNix generates, and the ways around it, in one configuration.
+class Main {
+    static void main() {
+        // attrsOf a submodule, by a name Nix must quote, and by one Seal can write as a field
+        Config.fileSystems.get("/data").device = "/dev/disk/by-label/data";
+        Config.fileSystems.get("/data").fsType = "ext4";
+        Config.fileSystems.get("/data").options.add("noatime");
+        Config.users.users.alice.isNormalUser = true;
+        Config.users.users.alice.extraGroups.add("wheel");
+        for (string name : ["bob", "carol"]) {
+            Config.users.users.get(name).isNormalUser = true;
+        }
+        Config.users.users.get("dave").isSystemUser = true;
+        Config.users.users.get("dave").group = "dave";
+        Config.users.groups.get("dave");                           // exists, with nothing set: dave = { };
+
+        // listOf a submodule
+        Config.swapDevices.add().device = "/swapfile";
+        Config.swapDevices.get(0).size = 8192;
+
+        // attrsOf a list, a list of numbers, a number, a string with everything Nix escapes
+        Config.networking.hosts.get("127.0.0.2").add("seal.local");
+        Config.networking.firewall.allowedUDPPorts.add(53);
+        Config.boot.kernel.sysctl.set("vm.swappiness", "10");
+        Config.services.getty.helpLine = "say \"hi\" \\ ${not interpolated}\nsecond line";
+        Config.console.keyMap = "us";
+
+        // a freeform settings submodule: declared options as fields, the rest with set
+        Config.services.openssh.enable = true;
+        Config.services.openssh.settings.X11Forwarding = true;
+        Config.services.openssh.settings.set("ClientAliveInterval", 60);
+
+        // an option named after a Seal keyword, and a package by a path known only at run time
+        Config.programs.git.enable = true;
+        Config.programs.git.package_ = Packages.gitFull;
+        Config.environment.systemPackages.add(Pkg.of("python3Packages.requests"));
+        Config.environment.systemPackages.add(Packages.nerd_fonts.jetbrains_mono);
+
+        // a value Seal has no type for, an option by path, and Nix code
+        Config.boot.kernelPackages = Nix.raw("pkgs.linuxPackages_zen");
+        Config.set("services.fwupd.enable", true);
+        Config.setRaw("services.journald.settings.Journal.SystemMaxUse", "lib.mkDefault \"500M\"");
+
+        // false where NixOS's default (computed from other options) is true
+        Config.boot.loader.grub.enable = false;
+
+        // reading an option the program set, as any variable
+        if (Config.services.openssh.enable) {
+            Config.networking.firewall.allowedTCPPorts.add(22);
+        }
+        System.stdout.println("features set");
+    }
+}

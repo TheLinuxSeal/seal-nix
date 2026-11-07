@@ -1,0 +1,22 @@
+import sealnix.*;
+
+// The machine nix build .#vm-test boots, and checks from the inside.
+class Main {
+    static void main() {
+        Config.networking.hostName = "sealbox";
+        Config.services.openssh.enable = true;
+        Config.environment.variables.SEALNIX = "from Seal";
+        Config.environment.systemPackages.add(Packages.fastfetch);
+
+        Config.users.users.seal.isNormalUser = true;
+        Config.users.users.seal.extraGroups.add("wheel");
+        Config.users.users.seal.packages.add(Packages.cowsay);
+
+        Config.systemd_services_entry hello = Config.systemd.services.get("hello");
+        hello.description = "Say hello from Seal";
+        hello.wantedBy.add("multi-user.target");
+        hello.script = "echo hello from Seal > /run/hello";
+        hello.serviceConfig.Type = "oneshot";
+        hello.serviceConfig.set("RemainAfterExit", true);
+    }
+}

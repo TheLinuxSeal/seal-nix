@@ -1,0 +1,106 @@
+package sealnix;
+
+import seal.util.List;
+
+// Values as Nix writes them. The generated Config uses these to report what a configuration set.
+class Text {
+    public static string b(bit v) { return "" + v; }
+
+    public static string i(int<<64>> v) { return v < 0 ? "(" + v + ")" : "" + v; }
+
+    public static string f(double v) { return v < 0 ? "(" + v + ")" : "" + v; }
+
+    public static string s(string v) { return quote(v); }
+
+    public static string p(Pkg v) { return v.expr; }
+
+    public static string n(Nix v) { return v.text(); }
+
+    // Lists, marked so that SealNix's host can lay them out: one line, or one item to a line.
+    public static string bl(List<bit> vs) {
+        List<string> items = new List();
+        for (bit v : vs) { items.add(b(v)); }
+        return list(items);
+    }
+
+    public static string il(List<int<<64>>> vs) {
+        List<string> items = new List();
+        for (int<<64>> v : vs) { items.add(i(v)); }
+        return list(items);
+    }
+
+    public static string fl(List<double> vs) {
+        List<string> items = new List();
+        for (double v : vs) { items.add(f(v)); }
+        return list(items);
+    }
+
+    public static string sl(List<string> vs) {
+        List<string> items = new List();
+        for (string v : vs) { items.add(s(v)); }
+        return list(items);
+    }
+
+    public static string pl(List<Pkg> vs) {
+        List<string> items = new List();
+        for (Pkg v : vs) { items.add(p(v)); }
+        return list(items);
+    }
+
+    public static string nl(List<Nix> vs) {
+        List<string> items = new List();
+        for (Nix v : vs) { items.add(n(v)); }
+        return list(items);
+    }
+
+    static string list(List<string> items) {
+        StringBuilder out = new StringBuilder();
+        out.append('\u0003');
+        for (int k = 0; k < items.size(); k++) {
+            if (k > 0) { out.append('\u001d'); }
+            out.append(items.get(k));
+        }
+        return out.toString();
+    }
+
+    // A Nix string literal, with \, ", ${ and control characters escaped.
+    public static string quote(string v) {
+        StringBuilder out = new StringBuilder();
+        out.append('"');
+        for (int k = 0; k < v.length(); k++) {
+            char c = v.charAt(k);
+            if (c == '\\' || c == '"') {
+                out.append('\\').append(c);
+            } else if (c == '$' && k + 1 < v.length() && v.charAt(k + 1) == '{') {
+                out.append("\\$");
+            } else if (c == '\n') {
+                out.append("\\n");
+            } else if (c == '\r') {
+                out.append("\\r");
+            } else if (c == '\t') {
+                out.append("\\t");
+            } else {
+                out.append(c);
+            }
+        }
+        out.append('"');
+        return out.toString();
+    }
+
+    // An attribute name as Nix writes it: bare when it can be (seal, my-host_2), else quoted ("/", "a.b").
+    public static string name(string v) {
+        bit bare = v.length() > 0 && !isKeyword(v);
+        for (int k = 0; k < v.length(); k++) {
+            char c = v.charAt(k);
+            bit first = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+            bit later = (c >= '0' && c <= '9') || c == '-' || c == '\'';
+            if (!first && !(k > 0 && later)) { bare = false; }
+        }
+        return bare ? v : quote(v);
+    }
+
+    static bit isKeyword(string v) {
+        return v == "if" || v == "then" || v == "else" || v == "assert" || v == "with" || v == "let"
+            || v == "in" || v == "rec" || v == "inherit" || v == "or";
+    }
+}

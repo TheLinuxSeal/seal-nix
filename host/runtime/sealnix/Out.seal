@@ -1,0 +1,45 @@
+package sealnix;
+
+import seal.util.List;
+
+// Reports what a configuration set, one line a value, for SealNix's host to read once main() returns:
+// \u0001, the path's names (already as Nix writes them) between \u001f, a tab, and the value's Nix.
+class Out {
+    List<string> path = new List();
+
+    public void push(string name) { path.add(name); }
+
+    public void pop() { path.removeLast(); }
+
+    // The value of the option `name`, under the current path.
+    public void at(string name, string nix) {
+        push(name);
+        line(nix);
+        pop();
+    }
+
+    // The current path names something that exists, though nothing in it may be set: users.users.seal.
+    public void exists() { line("\u0002"); }
+
+    // An option given by its path in Nix's own words: Config.set("services.tailscale.enable", true).
+    public void dotted(string dotted, string nix) {
+        int depth = 0;
+        for (string part : dotted.split('.')) {
+            push(Text.name(part));
+            depth++;
+        }
+        line(nix);
+        for (int k = 0; k < depth; k++) { pop(); }
+    }
+
+    void line(string nix) {
+        StringBuilder out = new StringBuilder();
+        out.append('\u0001');
+        for (int k = 0; k < path.size(); k++) {
+            if (k > 0) { out.append('\u001f'); }
+            out.append(path.get(k));
+        }
+        out.append('\t').append(nix.replace('\n', '\u001e'));
+        System.stdout.println(out.toString());
+    }
+}
