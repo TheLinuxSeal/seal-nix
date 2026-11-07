@@ -130,19 +130,26 @@ let
     else if n == "submodule" then
       let sub = tryEval (u.getSubOptions loc); in
       if !sub.success || isNixos sub.value then { k = "nix"; }
-      else { k = "sub"; options = everything sub.value; freeform = u.nestedTypes ? freeformType; }
+      else {
+        k = "sub";
+        options = everything sub.value;
+        # Whether it takes settings it doesn't declare: home-manager's can't say without a configuration.
+        freeform = let r = tryEval (u.nestedTypes ? freeformType); in r.success && r.value;
+      }
     else if s != null then { k = s; }
     else if elem n attrsTypes then { k = "attrs"; e = { k = "nix"; }; names = namesAt loc; nameTypes = nameTypes (namesAt loc); }
     else if elem n nixTypes then { k = "nix"; }
     else { k = byDescription u; };
 
-  # either a or b: the kind most configurations mean, a string over a number, over a list.
+  # either a or b: the kind most configurations mean. One that may be an attribute set is a set of
+  # settings (git's, Hyprland's, which may also be a value or a list); else a string over a number,
+  # over a list.
   union = depth: loc: t:
     let
       kinds = map (kind (depth + 1) loc) (alternatives t);
       first = ks: filter (x: elem x.k ks) kinds;
       pick = foldl' (found: ks: if found != null then found else let f = first ks; in if f == [ ] then null else head f) null
-        [ [ "str" ] [ "int" ] [ "float" ] [ "bit" ] [ "pkg" ] [ "list" ] [ "attrs" ] [ "sub" ] ];
+        [ [ "attrs" ] [ "sub" ] [ "str" ] [ "int" ] [ "float" ] [ "bit" ] [ "pkg" ] [ "list" ] ];
     in
     if pick == null then { k = "nix"; } else pick;
 
@@ -174,11 +181,17 @@ let
     in
     lib.filterAttrs (n: v: v != null) (lib.genAttrs winners (n: specOf set.${n}));
 
+  # An option's spec, or a namespace's, or null where evaluating it fails: forced all the way down
+  # here, where a failure can be caught, rather than when it becomes JSON (home-manager's
+  # nixpkgs.* options can't be evaluated without a configuration).
   specOf = v:
-    let r = tryEval (
-      if lib.isOption v then (if v.readOnly or false then null else optionSpec v)
-      else if isAttrs v && !(lib.isDerivation v) then { kind = "ns"; children = everything v; }
-      else null);
+    let
+      r = tryEval (
+        let spec =
+          if lib.isOption v then (if v.readOnly or false then null else optionSpec v)
+          else if isAttrs v && !(lib.isDerivation v) then { kind = "ns"; children = everything v; }
+          else null;
+        in builtins.deepSeq spec spec);
     in
     if r.success then r.value else null;
 

@@ -206,6 +206,35 @@ folder can hold several machines, each an entry of its own that shares the rest:
 appears in another's text, comments too, so a comment can bring one in; it compiles, but only what
 the entry's `main()` calls sets anything.)
 
+### home-manager, Hyprland, and other modules
+
+All of NixOS's own modules are there: `Config.programs.hyprland.enable = true;`. Another flake's
+NixOS module is too, once seal-nix knows of it through `seal-nix.extraModules` (the system imports it
+as well), home-manager's say:
+
+```nix
+modules = [
+  home-manager.nixosModules.home-manager
+  seal-nix.nixosModules.default
+  {
+    seal-nix.src = ./config/Main.seal;
+    seal-nix.extraModules = [ home-manager.nixosModules.home-manager ];
+  }
+];
+```
+
+```java
+Config.home_manager.users.seal.home.stateVersion = "26.05";      // home-manager is home_manager in Seal
+Config.home_manager.users.seal.home.packages.add(Packages.fastfetch);
+Config.home_manager.users.seal.programs.git.enable = true;
+Config.home_manager.users.seal.programs.git.settings.set("user", Nix.attrs().set("name", "seal"));
+Config.home_manager.users.seal.wayland.windowManager.hyprland.enable = true;
+Config.home_manager.users.seal.wayland.windowManager.hyprland.settings.set("general", Nix.attrs().set("gaps_in", 5));
+```
+
+Free-form settings, as git's and Hyprland's are, take `.set(key, value)`. Standalone home-manager
+(`homeConfigurations`, `home-manager switch`) isn't one of them: seal-nix makes NixOS modules.
+
 ### Values
 
 The program is ordinary Seal: loops, methods, other classes and files all work, and reading an option
