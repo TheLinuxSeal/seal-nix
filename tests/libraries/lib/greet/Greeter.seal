@@ -1,0 +1,10 @@
+package greet;
+
+import sealnix.*;
+
+// A library's class, which sets options as the configuration's own classes do.
+class Greeter {
+    public static void greet(string name) {
+        Config.environment.etc.get("greeting").text = "hello, " + name;
+    }
+}

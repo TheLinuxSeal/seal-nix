@@ -1,0 +1,9 @@
+import sealnix.*;
+import greet.Greeter;
+
+// A class from a library, a folder of seal-nix.libraries: greet/Greeter.seal, in the package greet.
+class Main {
+    static void main() {
+        Greeter.greet("seal");
+    }
+}

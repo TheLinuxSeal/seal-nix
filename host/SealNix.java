@@ -53,9 +53,18 @@ public final class SealNix {
         Map<String, Object> spec = Json.object(new Json(Files.readString(Path.of(args[1]))).value());
         Map<String, String> fixed = new TreeMap<>();
         readSeal(Path.of(args[0]), fixed);
+        // The configuration's folder, then each library's: one file of a name, in one of them.
         Map<String, String> program = new TreeMap<>();
         for (int i = 2; i < args.length; i++) {
-            readSeal(Path.of(args[i]), program);
+            Map<String, String> folder = new TreeMap<>();
+            readSeal(Path.of(args[i]), folder);
+            for (var e : folder.entrySet()) {
+                if (program.putIfAbsent(e.getKey(), e.getValue()) != null) {
+                    System.err.println(e.getKey() + ": the configuration and a library, or two libraries, each have a "
+                        + "file of this name; rename one, or put a library in a package of its own");
+                    System.exit(1);
+                }
+            }
         }
         try {
             Map<String, String> first = run(sources(spec, 0, fixed, program), true, spec);

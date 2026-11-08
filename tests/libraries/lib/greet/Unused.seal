@@ -1,0 +1,6 @@
+package greet;
+
+// Nothing names this class, so it isn't compiled, and the error in it breaks nothing.
+class Unused {
+    this is not Seal
+}

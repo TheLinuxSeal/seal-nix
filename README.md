@@ -86,6 +86,7 @@ The options and packages Seal can name are those of the system's own nixpkgs.
 | --- | --- |
 | `seal-nix.src` | The Seal configuration's entry file, `./config/Main.seal`: its class's `main()` runs and sets `Config`'s options (see [Several files](#several-files-and-machines)). A folder works too: all its `.seal` files, entry `Main.seal`. |
 | `seal-nix.extraModules` | Modules beyond NixOS's own whose options Seal sets, as `[ home-manager.nixosModules.home-manager ]`; import them into the system too. |
+| `seal-nix.libraries` | Folders of Seal libraries, whose classes the configuration uses as its own (see [Libraries](#libraries)); a library flake's module adds its own. |
 | `seal-nix.system` | The machine's system, only for one whose modules don't set `nixpkgs.hostPlatform`. |
 | `seal-nix.systemOverlays` | Whether `Packages` has the packages of the system's `nixpkgs.overlays` (default `true`); see [other flakes](#other-flakes-home-manager-hyprland-and-the-rest). |
 | `seal-nix.generated` | The module the Seal configuration made, to read: `nix build .#nixosConfigurations.my-machine.config.seal-nix.generated && cat result`. |
@@ -207,6 +208,29 @@ folder can hold several machines, each an entry of its own that shares the rest:
 [`tests/machines`](tests/machines) is two such machines. (A file is named when its class's name
 appears in another's text, comments too, so a comment can bring one in; it compiles, but only what
 the entry's `main()` calls sets anything.)
+
+### Libraries
+
+A library is Seal classes in a folder of its own, outside the configuration's, that
+`seal-nix.libraries` names. Each is in a package, in the folder of that name, so its classes can't
+take a configuration's names: `package minecraft;` is `minecraft/MinecraftServerUtil.seal`, which
+a configuration imports, `import minecraft.MinecraftServerUtil;`. Its classes come in as the
+configuration's own files do, when something names them, so a folder of many libraries costs only
+the ones used. A file of the same path in two folders is an error.
+
+A flake of libraries gives a NixOS module that adds its folder, as
+[seal-nix-libs](https://github.com/TheLinuxSeal/seal-nix-libs) does:
+
+```nix
+modules = [
+  seal-nix.nixosModules.default
+  seal-nix-libs.nixosModules.default       # seal-nix.libraries = [ its lib folder ]
+  { seal-nix.src = ./config/Main.seal; }
+];
+```
+
+In Nix, `seal-nix.lib.generate { ...; libraries = [ ./lib ]; }` takes them too;
+[`tests/libraries`](tests/libraries) is a configuration with one.
 
 ### Other flakes: home-manager, Hyprland, and the rest
 

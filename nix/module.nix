@@ -37,7 +37,7 @@ let
     }] ++ cfg.extraModules;
   };
 
-  generated = generateWith { inherit system nixos; inherit (cfg) src; };
+  generated = generateWith { inherit system nixos; inherit (cfg) src libraries; };
   module = import generated { inherit config lib options pkgs modulesPath; };
 
   # What the generated module sets at path, as this module's definition of it. The names this
@@ -78,6 +78,18 @@ in
         sets Config's options; the classes it names (Users.add()) come from the .seal files of the
         same name beside it, and the ones those name, and so on. A folder works too: all its .seal
         files, with Main.seal the entry.
+      '';
+    };
+
+    libraries = lib.mkOption {
+      type = lib.types.listOf lib.types.path;
+      default = [ ];
+      example = lib.literalExpression "[ seal-nix-libs.sealLibrary ]";
+      description = ''
+        Folders of Seal libraries, beside the configuration's own: a class the configuration names
+        comes from one of them as it would from a file beside it, and a class it doesn't name isn't
+        compiled. A library is in a package of its own, in the folder of that name (package minecraft
+        is minecraft/MinecraftServerUtil.seal), and a library flake's NixOS module adds its folder here.
       '';
     };
 

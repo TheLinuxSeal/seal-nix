@@ -45,10 +45,11 @@
       #   src     the configuration's entry file (./config/Main.seal), whose class's main() sets
       #           Config's options; or its folder, whose entry is Main.seal (nix/sources.nix)
       #   nixos   a NixOS evaluated on its own, whose options and packages the configuration may use
-      generateWith = { system, src, nixos }:
+      #   libraries  folders of Seal libraries, whose classes the configuration may name as its own
+      generateWith = { system, src, nixos, libraries ? [ ] }:
         let
           buildPkgs = self.inputs.nixpkgs.legacyPackages.${system};
-          sources = import ./nix/sources.nix { inherit lib; } src;
+          sources = import ./nix/sources.nix { inherit lib; } src libraries;
           spec = import ./nix/spec.nix { inherit (nixos.pkgs) lib; inherit (nixos) options pkgs; } sources.files;
         in
         buildPkgs.runCommand "sealnix-module.nix"
@@ -58,15 +59,15 @@
             passAsFile = [ "spec" ];
           }
           ''
-            sealnix-host "$specPath" ${sources.dir} > $out
+            sealnix-host "$specPath" ${lib.escapeShellArgs sources.dirs} > $out
           '';
 
       # As generateWith, with the options and packages of a nixpkgs flake (this one's, unless given),
       # of extraModules, modules that declare more options (home-manager's, say), which get
       # specialArgs, and of overlays.
-      generate = { system, src, nixpkgs ? self.inputs.nixpkgs, extraModules ? [ ], specialArgs ? { }, overlays ? [ ] }:
+      generate = { system, src, nixpkgs ? self.inputs.nixpkgs, extraModules ? [ ], specialArgs ? { }, overlays ? [ ], libraries ? [ ] }:
         generateWith {
-          inherit system src;
+          inherit system src libraries;
           nixos = nixpkgs.lib.nixosSystem {
             inherit specialArgs;
             modules = [{ nixpkgs.hostPlatform = system; nixpkgs.overlays = overlays; }] ++ extraModules;
@@ -172,6 +173,15 @@
           grep -q 'tlp.enable = true' $laptop
           ! grep -q plasma6 $laptop
           grep -q 'extraGroups = \[ "wheel" \]' $laptop
+          touch $out
+        '';
+
+        # a class from a library's folder, in its package; the library's other class, which nothing
+        # names and wouldn't compile, is left out
+        libraries = pkgs.runCommand "libraries" { } ''
+          module=${generate { inherit system; src = ./tests/libraries/config/Main.seal; libraries = [ ./tests/libraries/lib ]; }}
+          head -1 $module | grep -q "from Main.seal, greet/Greeter.seal:"
+          grep -q 'environment.etc.greeting.text = "hello, seal";' $module
           touch $out
         '';
       } // lib.optionalAttrs (system == "x86_64-linux") {
