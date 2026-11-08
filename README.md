@@ -213,8 +213,8 @@ the entry's `main()` calls sets anything.)
 
 A library is Seal classes in a folder of its own, outside the configuration's, that
 `seal-nix.libraries` names. Each is in a package, in the folder of that name, so its classes can't
-take a configuration's names: `package minecraft;` is `minecraft/MinecraftServerUtil.seal`, which
-a configuration imports, `import minecraft.MinecraftServerUtil;`. Its classes come in as the
+take a configuration's names: `package minecraft;` is `minecraft/Server.seal` and its other files,
+which a configuration imports, `import minecraft.*;`. Its classes come in as the
 configuration's own files do, when something names them, so a folder of many libraries costs only
 the ones used. A file of the same path in two folders is an error.
 
