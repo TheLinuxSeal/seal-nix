@@ -88,8 +88,8 @@ in
       description = ''
         Folders of Seal libraries, beside the configuration's own: a class the configuration names
         comes from one of them as it would from a file beside it, and a class it doesn't name isn't
-        compiled. A library is in a package of its own, in the folder of that name (package minecraft
-        is minecraft/Server.seal, and its other files), and a library flake's NixOS module adds its folder here.
+        compiled. A library is in a package of its own, in the folder of that name (package
+        sealnix.libs.minecraft is sealnix/libs/minecraft/Server.seal, and its other files), and a library flake's NixOS module adds its folder here.
       '';
     };
 
