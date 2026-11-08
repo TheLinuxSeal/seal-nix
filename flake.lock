@@ -29,11 +29,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1794018813,
-        "narHash": "sha256-ql2qRzNMrwfF6TMwJoglznWrW9pVEqHwCnpF4l9EokM=",
+        "lastModified": 1794115322,
+        "narHash": "sha256-j0hOrWbWU6dFzun6FNion+J6E6+lL3DhHxZEpVwXbqg=",
         "owner": "TheLinuxSeal",
         "repo": "seal-lang",
-        "rev": "262fc91eb0b035ea5c534512abcf09eb26b66964",
+        "rev": "d1403c9124b8c012e9c16f493f28cd4a8ee9b16b",
         "type": "github"
       },
       "original": {

@@ -273,15 +273,17 @@ and the overlays to run Seal): `seal-nix.systemOverlays = false;` stops reading 
 ### Values
 
 The program is ordinary Seal: loops, methods, other classes and files all work, and reading an option
-it set gives the value. Reading one it didn't set gives a placeholder, not NixOS's default. Seal has
-no `var` yet; for a variable, the generated classes are named after their paths, `<name>` being
-`entry` and a list's element `item`:
+it set gives the value. Reading one it didn't set gives a placeholder, not NixOS's default. A part of
+`Config` can be a variable, with `var`:
 
 ```java
-Config.systemd_services_entry hello = Config.systemd.services.get("hello");
+var hello = Config.systemd.services.get("hello");
 hello.script = "echo hello from Seal";
 hello.wantedBy.add("multi-user.target");
 ```
+
+Its type, where one is written out, is named after its path, `<name>` being `entry` and a list's
+element `item`: `Config.systemd_services_entry hello = ...`.
 
 ## How it works
 
